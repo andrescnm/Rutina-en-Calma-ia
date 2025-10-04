@@ -3,18 +3,16 @@ import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { rateLimit } from "./rate-limit";
-import { moderateContent } from "./moderation";
-import { calculatePriceFinal } from "./currency";
-import { rankVendors } from "./ranker";
+import { rateLimit } from "../server/rate-limit";
+import { moderateContent } from "../server/moderation";
+import { calculatePriceFinal } from "../server/currency";
+import { rankVendors } from "../server/ranker";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
-});
+const stripe = process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2024-12-18.acacia",
+    })
+  : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
@@ -152,6 +150,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.sendStatus(401);
     }
 
+    if (!stripe) {
+      return res.status(500).json({ message: "Stripe is not configured. Please set STRIPE_SECRET_KEY." });
+    }
+
     try {
       const { items } = req.body;
       let total = 0;
@@ -183,6 +185,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Stripe webhook
   app.post("/api/stripe/webhook", async (req, res) => {
+    if (!stripe) {
+      return res.status(500).json({ message: "Stripe is not configured" });
+    }
+
     const sig = req.headers['stripe-signature'];
 
     try {

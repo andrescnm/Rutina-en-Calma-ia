@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
@@ -140,7 +140,7 @@ export default function CheckoutPage() {
     return acc;
   }, {} as Record<string, typeof MOCK_CART_ITEMS>);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (MOCK_CART_ITEMS.length > 0 && !clientSecret) {
       createPaymentIntentMutation.mutate(MOCK_CART_ITEMS);
     }

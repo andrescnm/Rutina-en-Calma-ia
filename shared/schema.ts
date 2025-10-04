@@ -13,7 +13,7 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const vendors = pgTable("vendors", {
+export const vendors: any = pgTable("vendors", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
   businessName: text("business_name").notNull(),
@@ -22,7 +22,7 @@ export const vendors = pgTable("vendors", {
   kycStatus: text("kyc_status").$type<"pending" | "approved" | "rejected">().default("pending"),
   status: text("status").$type<"active" | "suspended" | "pending">().default("pending"),
   stripeAccountId: text("stripe_account_id"),
-  shippingProfileId: uuid("shipping_profile_id").references(() => shippingProfiles.id),
+  shippingProfileId: uuid("shipping_profile_id").references((): any => shippingProfiles.id),
   returnPolicy: text("return_policy"),
   shippingPolicy: text("shipping_policy"),
   // Ranking KPIs
@@ -66,11 +66,11 @@ export const products = pgTable("products", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const shippingProfiles = pgTable("shipping_profiles", {
+export const shippingProfiles: any = pgTable("shipping_profiles", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   rules: jsonb("rules").notNull(), // JSON with shipping rates and zones
-  vendorId: uuid("vendor_id").references(() => vendors.id),
+  vendorId: uuid("vendor_id").references((): any => vendors.id),
 });
 
 export const orders = pgTable("orders", {

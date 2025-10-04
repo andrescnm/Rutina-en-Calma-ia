@@ -57,11 +57,11 @@ export interface IStorage {
   // Audit Logs
   createAuditLog(event: string, actor: string, target?: string, payload?: any): Promise<void>;
 
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
 }
 
 export class DatabaseStorage implements IStorage {
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
 
   constructor() {
     this.sessionStore = new PostgresSessionStore({ 
@@ -121,7 +121,7 @@ export class DatabaseStorage implements IStorage {
   async createVendor(insertVendor: InsertVendor): Promise<Vendor> {
     const [vendor] = await db
       .insert(vendors)
-      .values(insertVendor)
+      .values(insertVendor as any)
       .returning();
     return vendor;
   }
@@ -157,7 +157,7 @@ export class DatabaseStorage implements IStorage {
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const [product] = await db
       .insert(products)
-      .values(insertProduct)
+      .values(insertProduct as any)
       .returning();
     return product;
   }
@@ -201,7 +201,7 @@ export class DatabaseStorage implements IStorage {
   async createOrder(insertOrder: InsertOrder): Promise<Order> {
     const [order] = await db
       .insert(orders)
-      .values(insertOrder)
+      .values(insertOrder as any)
       .returning();
     return order;
   }
