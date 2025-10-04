@@ -14,10 +14,9 @@ import { formatCOP, calculatePriceFinal } from "../lib/currency";
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
-}
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY 
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+  : null;
 
 const MOCK_CART_ITEMS = [
   {
@@ -141,7 +140,7 @@ export default function CheckoutPage() {
   }, {} as Record<string, typeof MOCK_CART_ITEMS>);
 
   useEffect(() => {
-    if (MOCK_CART_ITEMS.length > 0 && !clientSecret) {
+    if (MOCK_CART_ITEMS.length > 0 && !clientSecret && stripePromise) {
       createPaymentIntentMutation.mutate(MOCK_CART_ITEMS);
     }
   }, []);
@@ -160,7 +159,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!clientSecret) {
+  if (!clientSecret && stripePromise) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -257,9 +256,23 @@ export default function CheckoutPage() {
             {/* Payment */}
             <Card className="p-6">
               <h3 className="text-xl font-bold mb-4">Método de pago</h3>
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <CheckoutForm items={MOCK_CART_ITEMS} total={total} />
-              </Elements>
+              {!stripePromise ? (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-md">
+                  <p className="text-yellow-800 dark:text-yellow-200">
+                    Los pagos están temporalmente deshabilitados. 
+                    Configure las claves de Stripe para habilitar los pagos.
+                  </p>
+                </div>
+              ) : clientSecret ? (
+                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                  <CheckoutForm items={MOCK_CART_ITEMS} total={total} />
+                </Elements>
+              ) : (
+                <div className="text-center py-4">
+                  <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Preparando el pago...</p>
+                </div>
+              )}
             </Card>
           </div>
           
