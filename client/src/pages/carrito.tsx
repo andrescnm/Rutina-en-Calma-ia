@@ -1,4 +1,3 @@
-import { useState } from "react";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import CartSummary from "@/components/cart-summary";
@@ -6,42 +5,56 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
 import { formatCOP, calculatePriceFinal } from "../lib/currency";
-
-// This would normally come from cart context or state management
-const MOCK_CART_ITEMS = [
-  {
-    id: "1",
-    productId: "prod-1",
-    productName: "Ducha-Orden™ Rail",
-    productSlug: "ducha-orden-rail",
-    vendorId: "vendor-1",
-    vendorName: "Estación3",
-    vendorDeliveryDays: 2,
-    priceBase: 5033613, // 59900 COP with VAT = 50336.13 base
-    vat: 0.19,
-    quantity: 1,
-    image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100",
-  },
-  {
-    id: "2",
-    productId: "prod-2",
-    productName: "Kit Bacne Solo",
-    productSlug: "kit-bacne-solo",
-    vendorId: "vendor-2",
-    vendorName: "ClearBack Labs",
-    vendorDeliveryDays: 3,
-    priceBase: 12596639, // 149900 COP with VAT
-    vat: 0.19,
-    quantity: 2,
-    image: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100",
-  },
-];
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CarritoPage() {
-  const [cartItems, setCartItems] = useState(MOCK_CART_ITEMS);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const { data: cartItems = [], isLoading, isError } = useQuery({
+    queryKey: ["/api/cart"],
+    enabled: !!user,
+  });
+
+  if (!user || isError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container max-w-7xl mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-bold mb-4">Inicia sesión para ver tu carrito</h1>
+            <p className="text-muted-foreground">Debes estar autenticado para gestionar tu carrito de compras.</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const removeItemMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      await apiRequest("DELETE", `/api/cart/${itemId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      toast({ title: "Artículo eliminado del carrito" });
+    },
+  });
+
+  const updateQuantityMutation = useMutation({
+    mutationFn: async ({ itemId, quantity }: { itemId: string; quantity: number }) => {
+      await apiRequest("PATCH", `/api/cart/${itemId}`, { quantity });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+    },
+  });
 
   const removeItem = (itemId: string) => {
-    setCartItems(items => items.filter(item => item.id !== itemId));
+    removeItemMutation.mutate(itemId);
   };
 
   const updateQuantity = (itemId: string, newQuantity: number) => {
@@ -49,22 +62,47 @@ export default function CarritoPage() {
       removeItem(itemId);
       return;
     }
-    
-    setCartItems(items => items.map(item => 
-      item.id === itemId ? { ...item, quantity: newQuantity } : item
-    ));
+    updateQuantityMutation.mutate({ itemId, quantity: newQuantity });
   };
 
+  // Transform cart data
+  const transformedItems = cartItems.map((item: any) => ({
+    id: item.id,
+    productId: item.productId,
+    productName: item.product.name,
+    productSlug: item.product.slug,
+    vendorName: item.vendor.businessName,
+    vendorDeliveryDays: item.vendor.deliveryEtaDays,
+    priceBase: item.product.priceBase,
+    vat: item.product.vat,
+    quantity: item.quantity,
+    image: item.product.images?.[0] || "",
+  }));
+
   // Group items by vendor
-  const itemsByVendor = cartItems.reduce((acc, item) => {
+  const itemsByVendor = transformedItems.reduce((acc, item) => {
     if (!acc[item.vendorName]) {
       acc[item.vendorName] = [];
     }
     acc[item.vendorName].push(item);
     return acc;
-  }, {} as Record<string, typeof cartItems>);
+  }, {} as Record<string, typeof transformedItems>);
 
-  if (cartItems.length === 0) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container max-w-7xl mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (transformedItems.length === 0) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -180,11 +218,7 @@ export default function CarritoPage() {
           {/* Cart Summary */}
           <div>
             <CartSummary 
-              items={cartItems.map(item => ({
-                ...item,
-                productName: item.productName,
-                vendorName: item.vendorName,
-              }))}
+              items={transformedItems}
             />
           </div>
         </div>

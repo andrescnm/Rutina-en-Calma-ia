@@ -7,6 +7,8 @@ import { rateLimit } from "../server/rate-limit";
 import { moderateContent } from "../server/moderation";
 import { calculatePriceFinal } from "../server/currency";
 import { rankVendors } from "../server/ranker";
+import { insertCartItemSchema } from "@shared/schema";
+import { z } from "zod";
 
 const stripe = process.env.STRIPE_SECRET_KEY 
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -134,11 +136,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Cart API
-  app.post("/api/cart", async (req, res) => {
+  // Cart API - Get user's cart
+  app.get("/api/cart", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.sendStatus(401);
+    }
+
     try {
-      // Cart operations would be handled client-side or in session
-      res.json({ message: "Cart updated" });
+      const cartData = await storage.getCartByUser(req.user.id);
+      res.json(cartData);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Cart API - Add item to cart
+  app.post("/api/cart", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.sendStatus(401);
+    }
+
+    try {
+      // Validate request body
+      const cartItemData = insertCartItemSchema.extend({
+        quantity: z.number().int().min(1).max(99)
+      }).safeParse({
+        userId: req.user.id,
+        productId: req.body.productId,
+        quantity: req.body.quantity || 1
+      });
+
+      if (!cartItemData.success) {
+        return res.status(400).json({ message: "Invalid cart item data", errors: cartItemData.error.errors });
+      }
+
+      // Check if product exists and is active
+      const product = await storage.getProduct(cartItemData.data.productId);
+      if (!product || product.status !== 'active') {
+        return res.status(404).json({ message: "Product not found or not available" });
+      }
+      
+      const item = await storage.addToCart(cartItemData.data);
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Cart API - Update cart item quantity
+  app.patch("/api/cart/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.sendStatus(401);
+    }
+
+    try {
+      // Validate quantity
+      const quantitySchema = z.number().int().min(1).max(99);
+      const quantity = quantitySchema.safeParse(req.body.quantity);
+      
+      if (!quantity.success) {
+        return res.status(400).json({ message: "Invalid quantity", errors: quantity.error.errors });
+      }
+      
+      const item = await storage.updateCartItem(req.user.id, req.params.id, quantity.data);
+      if (!item) {
+        return res.status(404).json({ message: "Cart item not found" });
+      }
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Cart API - Remove item from cart
+  app.delete("/api/cart/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.sendStatus(401);
+    }
+
+    try {
+      await storage.removeFromCart(req.user.id, req.params.id);
+      res.json({ message: "Item removed" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Cart API - Clear cart
+  app.delete("/api/cart", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.sendStatus(401);
+    }
+
+    try {
+      await storage.clearCart(req.user.id);
+      res.json({ message: "Cart cleared" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

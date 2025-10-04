@@ -1,9 +1,9 @@
 import { 
   users, vendors, products, categories, orders, orderItems, reviews, 
-  payouts, shippingProfiles, recommendations, feedback, adherenceLogs, auditLogs,
+  payouts, shippingProfiles, recommendations, feedback, adherenceLogs, auditLogs, cartItems,
   type User, type InsertUser, type Vendor, type InsertVendor, 
   type Product, type InsertProduct, type Order, type InsertOrder,
-  type Review, type InsertReview, type Category
+  type Review, type InsertReview, type Category, type CartItem, type InsertCartItem
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -50,6 +50,13 @@ export interface IStorage {
   // Reviews
   getReviewsByProduct(productId: string): Promise<Review[]>;
   createReview(review: InsertReview): Promise<Review>;
+
+  // Cart
+  getCartByUser(userId: string): Promise<(CartItem & { product: Product; vendor: { businessName: string; deliveryEtaDays: number } })[]>;
+  addToCart(item: InsertCartItem): Promise<CartItem>;
+  updateCartItem(userId: string, id: string, quantity: number): Promise<CartItem>;
+  removeFromCart(userId: string, id: string): Promise<void>;
+  clearCart(userId: string): Promise<void>;
 
   // Recommendations
   createRecommendation(recommendation: any): Promise<any>;
@@ -226,6 +233,72 @@ export class DatabaseStorage implements IStorage {
       .values(insertReview)
       .returning();
     return review;
+  }
+
+  // Cart
+  async getCartByUser(userId: string): Promise<(CartItem & { product: Product; vendor: { businessName: string; deliveryEtaDays: number } })[]> {
+    const items = await db
+      .select({
+        id: cartItems.id,
+        userId: cartItems.userId,
+        productId: cartItems.productId,
+        quantity: cartItems.quantity,
+        createdAt: cartItems.createdAt,
+        updatedAt: cartItems.updatedAt,
+        product: products,
+        vendor: {
+          businessName: vendors.businessName,
+          deliveryEtaDays: vendors.deliveryEtaDays,
+        }
+      })
+      .from(cartItems)
+      .innerJoin(products, eq(cartItems.productId, products.id))
+      .innerJoin(vendors, eq(products.vendorId, vendors.id))
+      .where(eq(cartItems.userId, userId));
+    
+    return items as any;
+  }
+
+  async addToCart(item: InsertCartItem): Promise<CartItem> {
+    // Check if item already exists
+    const [existing] = await db
+      .select()
+      .from(cartItems)
+      .where(and(eq(cartItems.userId, item.userId), eq(cartItems.productId, item.productId)));
+    
+    if (existing) {
+      // Update quantity
+      const [updated] = await db
+        .update(cartItems)
+        .set({ quantity: existing.quantity + item.quantity, updatedAt: new Date() })
+        .where(eq(cartItems.id, existing.id))
+        .returning();
+      return updated;
+    }
+    
+    // Create new cart item
+    const [newItem] = await db
+      .insert(cartItems)
+      .values(item as any)
+      .returning();
+    return newItem;
+  }
+
+  async updateCartItem(userId: string, id: string, quantity: number): Promise<CartItem> {
+    const [updated] = await db
+      .update(cartItems)
+      .set({ quantity, updatedAt: new Date() })
+      .where(and(eq(cartItems.id, id), eq(cartItems.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async removeFromCart(userId: string, id: string): Promise<void> {
+    await db.delete(cartItems).where(and(eq(cartItems.id, id), eq(cartItems.userId, userId)));
+  }
+
+  async clearCart(userId: string): Promise<void> {
+    await db.delete(cartItems).where(eq(cartItems.userId, userId));
   }
 
   // Recommendations
