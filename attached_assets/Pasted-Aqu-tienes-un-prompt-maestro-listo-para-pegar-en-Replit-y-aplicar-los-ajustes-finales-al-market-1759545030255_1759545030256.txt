@@ -1,0 +1,88 @@
+Aquí tienes un **prompt maestro** listo para pegar en Replit y aplicar los ajustes finales al marketplace:
+
+```
+Actúa como un equipo full-stack senior. Ajusta y fortifica el Marketplace “Rutina simple, piel en calma” con estos módulos adicionales, manteniendo Next.js (App Router) + TypeScript + Tailwind + Prisma + NextAuth + Stripe Connect.
+
+## Objetivo
+Integrar: rate-limit, auditoría de cambios, moderación de claims, políticas de devolución por vendedor, modo debug del ranker, KPIs de vendedor para ranking, endpoint “borrar mis datos”, schema.org (IVA incl.), middleware de seguridad y footer legal persistente.
+
+## Tareas (copiar/pegar en archivos)
+1) **Rate limiting**
+- Archivo `/lib/rateLimit.ts`: token bucket en memoria.
+- Usar en `/app/api/checkout/route.ts`, `/app/api/recommend/route.ts`, `/app/api/reviews/route.ts`, `/app/api/suggestions/route.ts`.
+- Vars .env: `RATE_LIMIT_WINDOW_MS=60000`, `RATE_LIMIT_MAX=30`.
+
+2) **Audit log**
+- Archivo `/lib/audit.ts`: función `audit(event)` que loguea JSON.
+- (Opcional) Prisma `model Audit` y guardado.
+- Llamar `audit()` cuando admin cambie comisiones, ranking config o estado de vendedor.
+
+3) **Moderación de claims**
+- Archivo `/lib/moderation.ts`: lista de palabras bloqueadas (p.ej., “cura”, “tratamiento médico”, “dermatitis”, etc.) y reemplazos (“cuidado personal”).
+- En `/app/api/products/route.ts` (POST/PATCH) validar `name` y `description`: si falla → 400 y poner `status="paused"`.
+
+4) **Política de devoluciones por vendedor**
+- Prisma: añadir en `Vendor` campos `returnPolicy String?` y `shippingPolicy String?`.
+- Componente `/components/ReturnPolicy.tsx` y mostrar en PDP y en Checkout (link).
+- En `/cuenta/pedidos/[id]` botón “Iniciar devolución” → crea ticket (stub).
+
+5) **Debug del ranker (solo admin)**
+- Env var: `NEXT_PUBLIC_APP_DEBUG_RANK=1`.
+- Componente `/components/DebugRank.tsx` que muestre breakdown del score si flag activa.
+- Incluir `vendorSuggestion.breakdown` en respuesta de `/api/recommend` (solo admin).
+
+6) **KPIs de vendedor para ranking**
+- Prisma: añadir en `Vendor` columnas:
+  - `slaP95DispatchHrs Int?`, `deliveryEtaDays Int?`, `ratingAvg Float?`, `nps Int?`, `returnRate Float?`, `onTimeShipRate Float?`, `responseHrs Int?`, `stockHealth Float?`, `takeRateBp Int?`, `sensitiveOk Boolean? @default(false)`, `policyStrikes Int? @default(0)`, `distanceKm Int?`.
+- Seed: 3 vendedores (Estación3, ClearBack Labs, Salón Aliado) con KPIs distintos.
+
+7) **Borrar mis datos (privacidad)**
+- Endpoint `/app/api/account/delete/route.ts`: borra/anonimiza datos del usuario autenticado (feedback, recommendations, adherence; eliminar `User`).
+- Botón en `/cuenta` con confirmación.
+
+8) **Schema.org + IVA incluido**
+- Componente `/components/ProductSchema.tsx` con `Offer` y `UnitPriceSpecification` `valueAddedTaxIncluded: true`.
+- Calcular `priceFinal = Math.round(priceBase * (1 + vat)) / 100` y mostrar “COP IVA incl.”.
+
+9) **Middleware de seguridad**
+- `/middleware.ts`: cabeceras `X-Frame-Options:SAMEORIGIN`, `X-Content-Type-Options:nosniff`, `Referrer-Policy:strict-origin-when-cross-origin`, `Permissions-Policy:geolocation=()`.
+
+10) **Footer legal persistente**
+- Footer en layout root con texto:
+  “Contenido de **cuidado personal**, no consejo ni diagnóstico médico. Si tus síntomas empeoran o tienes dudas, **consulta a tu médico**.”
+
+## Integración con ranking existente
+- Mantener `/lib/ranker.ts` y `/lib/ranker.config.json`.
+- Al responder `/api/recommend`, ordenar vendedores del `top_pick` con `ranker.score()`, incluir `vendorSuggestion` con `reason[]` (“ETA 2d”, “Sensitive-OK”, “SLA 48h”) y `alternatives`.
+- En `/api/products` y `/tienda`, orden por defecto “Mejor entrega” (ranker) con overrides `?sort=precio|rating|rapidez|cercania`.
+
+## Pruebas mínimas (incluir)
+- Rate-limit: 10 POST a `/api/checkout` en 60s ⇒ la 11 devuelve 429.
+- Moderación: crear producto con “cura” en descripción ⇒ 400 + status “paused”.
+- Ranking: con config default ⇒ Estación3 > ClearBack > Salón Aliado; si `weights.distanceKm=0.2` y `distanceKm=10` para Salón ⇒ sube al top.
+- Webhook Stripe: `paid` marca `orders.status='paid'` y registra ledger por vendedor.
+- PDP muestra “Devoluciones del vendedor” y footer legal.
+- `ProductSchema` inyecta JSON-LD con IVA incluido.
+
+## Variables .env requeridas
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=changeme
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_CONNECT_CLIENT_ID=ca_xxx
+NEXT_PUBLIC_APP_DEBUG_RANK=1
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX=30
+
+## DoD (Definition of Done)
+- Precios siempre “$XX.XXX COP **IVA incl.**”.
+- Checkout multi-vendedor funcional (split en Connect test).
+- Ranking configurable por JSON y visible en tienda y recomendador.
+- Auditoría registrada al cambiar comisiones o pesos del ranker.
+- Política de devoluciones por vendedor visible y botón de devolución operativo (stub).
+- Footer/Disclaimer en todas las páginas; accesibilidad AA básica.
+
+Genera/ajusta el código con estos módulos, manteniendo el diseño limpio, mobile-first y textos en español (Colombia).
+```

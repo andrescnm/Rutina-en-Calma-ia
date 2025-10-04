@@ -1,0 +1,157 @@
+Aquí tienes un **prompt maestro** listo para pegar en Replit que crea el marketplace multi-vendedor con ranking inteligente, split payments, recomendador conversacional y los ajustes extra (rate-limit, auditoría, moderación de claims, política de devoluciones y debug del ranker).
+
+```
+Actúa como un equipo full-stack senior + ops. Construye en Next.js un **Marketplace multi-vendedor** para cuidado personal con el slogan:
+“Rutina simple, piel en calma”.
+
+## Objetivos del MVP
+1) Catálogo multi-vendedor con precios **en COP mostrando “IVA incl.” (19%)**, variantes, stock y reseñas.
+2) Onboarding de vendedores con KYC básico, creación de tienda, CRUD de productos (imágenes, precio base + IVA), pedidos, y dashboard de comisiones/payouts.
+3) **Split payments** con Stripe Connect (test) + webhook. Base (stubs) para Mercado Pago Split.
+4) **Recomendador** `/api/recommend` con quiz (zona, sensibilidad, gym, vive_solo, cabello_largo, presupuesto) y re-ranking por performance del vendedor.
+5) **Ranker de vendedores** configurable por JSON (pesos y normalización), con modo debug (solo admin) y trazabilidad de decisiones.
+6) Carrito multi-vendedor con checkout único: subtotales por vendedor, **IVA** desglosado, comisión marketplace transparente, y costos de envío por perfil.
+7) Blog en MDX + CMS ligero; **disclaimer médico persistente** (“cuidado personal, no consejo ni diagnóstico”).
+8) **Bucle conversacional** de 7 días (stubs email/WhatsApp): tips, adherencia, fotos antes/después (opt-in), feedback.
+9) Panel Admin: aprobar/suspender vendedores, moderar listados, gestionar comisiones, KPIs (GMV, take rate, fill-rate, P95 despacho), proveedores/RFP/SLA.
+10) **Endurecimiento**: rate-limit en APIs críticas, auditoría de cambios (ranker/comisiones), moderación de claims (bloqueo de lenguaje médico), políticas de devolución por vendedor.
+11) SEO/Accesibilidad: schema Product/AggregateRating, alt text, contraste AA, títulos/meta. Preparado para multi-moneda vía comentarios.
+
+## Stack
+- Next.js (App Router) + TypeScript + Tailwind.
+- Auth: NextAuth (Email/Password + Google OAuth) con roles: user | vendor | admin.
+- DB: Prisma + SQLite (Replit). Comentarios para migrar a Postgres/Supabase.
+- Pagos: Stripe Connect (Standard/Express, test) + webhook.
+- Contenido: MDX para blog.
+- Estado: Server Actions/React Query.
+- Moneda: COP, formato “$59.900 COP **IVA incl.**”.
+
+## Estructura (carpetas principales)
+- /app
+  - (públicas) home, tienda, producto/[slug], carrito, checkout, blog, blog/[slug], login, registro, cuenta
+  - vendedor/: inicio, productos, pedidos, finanzas, configuración
+  - admin/: vendedores, listados, pedidos, comisiones, kpis, proveedores, rfp, slas, ranking
+  - /api/products (GET|POST vendor)
+  - /api/vendors (GET admin|POST onb|PATCH admin)
+  - /api/recommend (POST)
+  - /api/cart (POST|PATCH)
+  - /api/checkout (POST)
+  - /api/stripe/webhook (POST)
+  - /api/reviews (POST)
+  - /api/feedback (POST)
+  - /api/suggestions (POST)
+  - /api/provider/rfp (POST)
+  - /api/provider/vendors (GET|POST|PATCH)
+  - /api/account/delete (POST) // borrar mis datos
+- /components
+  - Navbar, Footer (disclaimer), ProductCard (precio con IVA), VendorBadge, VendorCard,
+    QuizModal, CartSummarySplit, ReviewList, ReviewForm, FeedbackForm,
+    AdherenceWidget, RecommendationCard, ProductSchema, DebugRank (solo admin),
+    SellerProductForm, SellerPayoutBox, AdminTable, ProviderForm, RFPForm, SLAViewer, ReturnPolicy
+- /lib
+  - db.ts, auth.ts, stripe.ts (Connect), rules.ts (recomendación), currency.ts (COP+IVA),
+    rateLimit.ts, audit.ts, moderation.ts, ranker.ts, normalizers.ts, email.ts (stub), whatsapp.ts (stub), kpis.ts
+- /content (posts MDX)
+- /prisma (schema.prisma + seed.ts)
+- /styles (globals.css)
+- /scripts (seed)
+
+## Modelos Prisma (resumen)
+User(role), Vendor(commissionBp, kycStatus, stripeAccountId, shippingProfileId, **returnPolicy**, KPIs del ranker: slaP95DispatchHrs, deliveryEtaDays, ratingAvg, nps, returnRate, onTimeShipRate, responseHrs, stockHealth, takeRateBp, sensitiveOk, policyStrikes, distanceKm), Category, Product(priceBase, vat, badges[], images[], stock), Order/OrderItem (vendorId, feeBp, shipping), Review, Payout, ShippingProfile(rules JSON), Provider/RFP/SLA, Feedback, Suggestion, Recommendation(rankingMeta JSON), AdherenceLog, (opcional) Audit.
+
+## IVA y formato de precios
+- BE y FE calculan `priceFinal = Math.round(priceBase * (1 + vat))`.
+- Mostrar SIEMPRE “**IVA incl.**” en cards, PDP y carrito.
+- En carrito/checkout: Subtotal, IVA, Envío, Total. Nota: “La comisión del marketplace ya está contemplada en el precio.”
+
+## Reglas del recomendador (rules.ts)
+- Si `zona==='espalda' && vive_solo` => top_pick = “Kit Bacne”.
+- Si `cabello_largo` => top_pick o add-on “Ducha-Orden™”.
+- Si `gym` => add-on pads bolsillo (placeholder).
+- Si `sensibilidad==='alta'` => variant “Sensitive” (evita activos fuertes).
+- Re-ordenar candidatos por **ranker** (SLA, ETA, rating, NPS, devoluciones, on-time, respuesta, stock, comisión, distancia, sensitiveOk).
+- Respuesta incluye:
+```
+
+{
+segmento, top_pick, add_ons, variant, rationale,
+vendorSuggestion: { vendorId, score, reason[], breakdown? (solo admin) }
+}
+
+```
+
+## Ranker configurable
+- Archivo `/lib/ranker.config.json` con:
+- `weights`: slaP95Dispatch(0.22), deliveryEta(0.15), ratingAvg(0.18), nps(0.08), returnRate(0.10), onTimeShipRate(0.10), supportResponseHrs(0.05), stockHealth(0.04), takeRateBp(0.02), distanceKm(0.03), sensitiveOk(0.03)
+- `thresholds`: minRating=3.8, maxSlaP95Hours=96, maxReturnRate=0.08
+- `boosts`: badgeSensitiveOk=0.02, localVendor=0.03 (dist<30), fastTrack=0.02 (ETA<=2)
+- `penalties`: policyStrike=0.10, lateShipStrike=0.05 (onTime<0.85)
+- `tieBreakers`: ["deliveryEta","ratingAvg","distanceKm","priceFinal"]
+- `ranker.ts` implementa normalizaciones (0..1), aplica pesos, boosts/penalties y **hard filters** (rating<threshold, SLA>max, returns>max).
+- Modo debug (admin) con `<DebugRank />` y almacenamiento de `rankingMeta` en Recommendation.
+
+## Endurecimiento
+- **Rate-limit** en `/api/checkout`, `/api/recommend`, `/api/reviews`, `/api/suggestions` (token bucket en memoria).
+- **Audit log**: eventos “RANKER_UPDATE”, “COMMISSION_UPDATE”, “VENDOR_STATUS”, “PRODUCT_MOD” (con actor, target, payload).
+- **Moderación de claims**: bloquear palabras (“cura”, “diagnóstico”, “tratamiento médico”, etc.) y reemplazos (“cuidado personal”). En POST/PATCH de producto, fallar con 400 si hay claim prohibido.
+- **Política de devoluciones por vendedor**: campo `Vendor.returnPolicy` renderizado en PDP y link en checkout. Botón “Iniciar devolución” en pedidos (stub ticketing/email).
+
+## Bucle conversacional (stubs)
+- Tras compra:
+- Día 0: instalación + foto “Antes”.
+- Días 1–6: tip 1 línea + ✅/❌ → guarda en `AdherenceLog`.
+- Día 7: foto “Después” + encuesta + cupón recargas.
+- `email.send()` y `whatsapp.send()` loguean a consola en modo dev.
+
+## SEO/Accesibilidad
+- Componente `<ProductSchema />` con `valueAddedTaxIncluded: true`.
+- Alt text, labels, foco teclado, contraste AA.
+- Títulos/meta con “COP IVA incluido”.
+
+## UI (mínimo)
+- Home: Hero “Rutina simple, piel en calma” + CTA quiz, carrusel de vendedores, grid de productos con “IVA incl.”.
+- Tienda: filtros por categoría, vendedor, “Sensitive”; orden por defecto = “Entrega más rápida” (ranker).
+- PDP: fotos, “Qué incluye”, “Cómo se usa (3 pasos)”, reseñas, VendorBadge (ETA, Sensitive-OK, ★rating), **ReturnPolicy**, **disclaimer**:
+> “Este sitio ofrece información de **cuidado personal**, no diagnóstico médico. Si tus síntomas empeoran o tienes dudas, **consulta a tu médico**.”
+- Carrito multi-vendedor agrupado por vendedor. Checkout con Stripe Connect (test).
+- Cuenta: pedidos, adherencia 7 días, feedback (rating+texto+imagen), sugerencias, botón **“Borrar mis datos”**.
+- Vendedor: KPIs (ventas, NPS, on-time), productos, pedidos, finanzas (payouts), configuración (KYC, shippingProfile, returnPolicy).
+- Admin: vendedores (aprobar/suspender/KYC), comisiones, listados (moderar), KPIs (GMV, take rate, fill-rate, P95 despacho, devoluciones), proveedores/RFP/SLA, editor del **ranker.config.json** con preview y rollback.
+
+## Seeds
+- Vendors (3): Estación3 (12% comisión), ClearBack Labs (15%), Salón Aliado (12%). KPIs:
+- Estación3: sla=36h, eta=2d, rating=4.7, nps=62, returns=0.03, onTime=0.95, resp=6h, stock=0.9, take=1200, sensitiveOk=true
+- ClearBack: sla=60h, eta=3d, rating=4.5, nps=48, returns=0.04, onTime=0.91, resp=12h, stock=0.8, take=1500, sensitiveOk=true
+- Salón Aliado: sla=84h, eta=5d, rating=4.0, nps=20, returns=0.06, onTime=0.88, resp=24h, stock=0.7, take=1300, sensitiveOk=false
+- Categorías: “Ducha y baño”, “Tratamientos espalda”, “Recargas”.
+- Productos (3): Ducha-Orden™ Rail, Kit Bacne Solo (ReachClean™ + Pads), Back Cleanser 200 ml (rinse-off). `vat: 0.19`.
+- Blog: 3 posts MDX (“Orden de ducha”, “Gym”, “Piel sensible”).
+- Reseñas: 2 por producto. ShippingProfile nacional.
+
+## Variables .env
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=changeme
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_CONNECT_CLIENT_ID=ca_xxx
+NEXT_PUBLIC_APP_DEBUG_RANK=1
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX=30
+
+## Tests mínimos
+- IVA coincide FE/BE; cards muestran “IVA incl.”.
+- Ranker: default → Estación3 > ClearBack > Salón. Cambiar pesos de distancia eleva vendedor cercano.
+- Hard filter excluye rating < 3.8.
+- `/api/recommend` re-ordena por SLA/ETA.
+- Webhook Stripe marca `paid` y crea ledger/payout simulado.
+- Moderación: “cura/diagnóstico” bloquea publicación.
+- Rate-limit: exceso en `/api/checkout` → 429.
+- “Borrar mis datos” elimina/anonimiza registros del usuario.
+
+## Footer (legal persistente)
+> Contenido de **cuidado personal**, no consejo ni diagnóstico médico. Si tus síntomas empeoran o tienes dudas, **consulta a tu médico**.
+
+Entrega el código ejecutable (Next.js) con `pnpm prisma db seed` y `pnpm dev`, diseño mobile-first, español (Colombia) y precios como “$59.900 COP **IVA incl.**”.
+```
