@@ -1,0 +1,30 @@
+{
+  "weights": {
+    "slaP95Dispatch": 0.22,
+    "deliveryEta": 0.15,
+    "ratingAvg": 0.18,
+    "nps": 0.08,
+    "returnRate": 0.10,
+    "onTimeShipRate": 0.10,
+    "supportResponseHrs": 0.05,
+    "stockHealth": 0.04,
+    "takeRateBp": 0.02,
+    "distanceKm": 0.03,
+    "sensitiveOk": 0.03
+  },
+  "thresholds": {
+    "minRating": 3.8,
+    "maxSlaP95Hours": 96,
+    "maxReturnRate": 0.08
+  },
+  "boosts": {
+    "badgeSensitiveOk": 0.02,
+    "localVendor": 0.03,
+    "fastTrack": 0.02
+  },
+  "penalties": {
+    "policyStrike": 0.10,
+    "lateShipStrike": 0.05
+  },
+  "tieBreakers": ["deliveryEta", "ratingAvg", "distanceKm", "priceFinal"]
+}
