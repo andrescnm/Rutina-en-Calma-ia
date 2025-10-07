@@ -342,6 +342,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin APIs
+  app.get("/api/admin/kpis", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.sendStatus(403);
+    }
+
+    try {
+      const kpis = await storage.getAdminKPIs();
+      res.json(kpis);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/vendors", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.sendStatus(403);
+    }
+
+    try {
+      const vendors = await storage.getAllVendorsAdmin();
+      res.json(vendors);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/vendors/:id/status", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.sendStatus(403);
+    }
+
+    try {
+      const { status, kycStatus } = req.body;
+      const vendor = await storage.updateVendorStatus(req.params.id, status, kycStatus);
+      
+      await storage.createAuditLog("VENDOR_STATUS_UPDATE", req.user.id, {
+        vendorId: req.params.id,
+        status,
+        kycStatus
+      });
+
+      res.json(vendor);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/products", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.sendStatus(403);
+    }
+
+    try {
+      const products = await storage.getAllProductsAdmin();
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/products/:id/status", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.sendStatus(403);
+    }
+
+    try {
+      const { status } = req.body;
+      const product = await storage.updateProductStatus(req.params.id, status);
+      
+      await storage.createAuditLog("PRODUCT_STATUS_UPDATE", req.user.id, {
+        productId: req.params.id,
+        status
+      });
+
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/users", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.sendStatus(403);
+    }
+
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/audit-logs", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.sendStatus(403);
+    }
+
+    try {
+      const logs = await storage.getAuditLogs(100);
+      res.json(logs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

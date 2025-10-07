@@ -62,7 +62,16 @@ export interface IStorage {
   createRecommendation(recommendation: any): Promise<any>;
 
   // Audit Logs
-  createAuditLog(event: string, actor: string, target?: string, payload?: any): Promise<void>;
+  createAuditLog(event: string, actor: string, payload?: any): Promise<void>;
+  getAuditLogs(limit: number): Promise<any[]>;
+
+  // Admin
+  getAdminKPIs(): Promise<any>;
+  getAllVendorsAdmin(): Promise<any[]>;
+  getAllProductsAdmin(): Promise<any[]>;
+  getAllUsers(): Promise<User[]>;
+  updateVendorStatus(id: string, status: string, kycStatus?: string): Promise<Vendor>;
+  updateProductStatus(id: string, status: string): Promise<Product>;
 
   sessionStore: session.Store;
 }
@@ -311,13 +320,149 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Audit Logs
-  async createAuditLog(event: string, actor: string, target?: string, payload?: any): Promise<void> {
+  async createAuditLog(event: string, actor: string, payload?: any): Promise<void> {
     await db.insert(auditLogs).values({
       event,
       actor,
-      target,
       payload,
     });
+  }
+
+  async getAuditLogs(limit: number): Promise<any[]> {
+    const logs = await db
+      .select()
+      .from(auditLogs)
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
+    return logs;
+  }
+
+  // Admin methods
+  async getAdminKPIs(): Promise<any> {
+    // Calculate GMV from orders
+    const gmvResult = await db
+      .select({ total: sql<number>`COALESCE(SUM(${orders.total}), 0)` })
+      .from(orders)
+      .where(sql`${orders.createdAt} >= NOW() - INTERVAL '30 days'`);
+    
+    const gmv = gmvResult[0]?.total || 0;
+
+    // Calculate average take rate from vendors
+    const takeRateResult = await db
+      .select({ avgTakeRate: sql<number>`COALESCE(AVG(${vendors.commissionBp}), 0)` })
+      .from(vendors)
+      .where(eq(vendors.status, 'active'));
+    
+    const takeRate = (takeRateResult[0]?.avgTakeRate || 0) / 100;
+
+    // Calculate fill rate (completed orders / total orders)
+    const fillRateResult = await db
+      .select({ 
+        total: sql<number>`COUNT(*)`,
+        completed: sql<number>`COUNT(*) FILTER (WHERE ${orders.status} IN ('delivered', 'shipped'))`
+      })
+      .from(orders)
+      .where(sql`${orders.createdAt} >= NOW() - INTERVAL '30 days'`);
+    
+    const fillRate = fillRateResult[0]?.total 
+      ? ((fillRateResult[0].completed || 0) / fillRateResult[0].total) * 100
+      : 0;
+
+    // Calculate p95 dispatch time
+    const p95Result = await db
+      .select({ p95: sql<number>`COALESCE(AVG(${vendors.slaP95DispatchHrs}), 0)` })
+      .from(vendors)
+      .where(eq(vendors.status, 'active'));
+    
+    const p95Dispatch = p95Result[0]?.p95 || 0;
+
+    return {
+      gmv: Math.round(gmv / 100), // Convert from cents
+      takeRate: Math.round(takeRate * 10) / 10,
+      fillRate: Math.round(fillRate),
+      p95Dispatch: Math.round(p95Dispatch)
+    };
+  }
+
+  async getAllVendorsAdmin(): Promise<any[]> {
+    const vendorsList = await db
+      .select({
+        id: vendors.id,
+        businessName: vendors.businessName,
+        description: vendors.description,
+        status: vendors.status,
+        kycStatus: vendors.kycStatus,
+        ratingAvg: vendors.ratingAvg,
+        slaP95DispatchHrs: vendors.slaP95DispatchHrs,
+        commissionBp: vendors.commissionBp,
+        nps: vendors.nps,
+        returnRate: vendors.returnRate,
+        onTimeShipRate: vendors.onTimeShipRate,
+        stockHealth: vendors.stockHealth,
+        deliveryEtaDays: vendors.deliveryEtaDays,
+        createdAt: vendors.createdAt
+      })
+      .from(vendors)
+      .orderBy(desc(vendors.createdAt));
+    
+    return vendorsList;
+  }
+
+  async getAllProductsAdmin(): Promise<any[]> {
+    const productsList = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        slug: products.slug,
+        status: products.status,
+        priceBase: products.priceBase,
+        stock: products.stock,
+        vendorId: products.vendorId,
+        vendorName: vendors.businessName,
+        categoryId: products.categoryId,
+        categoryName: categories.name,
+        createdAt: products.createdAt
+      })
+      .from(products)
+      .leftJoin(vendors, eq(products.vendorId, vendors.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .orderBy(desc(products.createdAt));
+    
+    return productsList;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    const usersList = await db
+      .select()
+      .from(users)
+      .orderBy(desc(users.createdAt));
+    
+    return usersList;
+  }
+
+  async updateVendorStatus(id: string, status: string, kycStatus?: string): Promise<Vendor> {
+    const updates: any = { status };
+    if (kycStatus) {
+      updates.kycStatus = kycStatus;
+    }
+
+    const [vendor] = await db
+      .update(vendors)
+      .set(updates)
+      .where(eq(vendors.id, id))
+      .returning();
+    
+    return vendor;
+  }
+
+  async updateProductStatus(id: string, status: string): Promise<Product> {
+    const [product] = await db
+      .update(products)
+      .set({ status: status as any })
+      .where(eq(products.id, id))
+      .returning();
+    
+    return product;
   }
 }
 
