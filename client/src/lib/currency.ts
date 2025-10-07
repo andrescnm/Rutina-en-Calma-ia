@@ -2,7 +2,7 @@ export function calculatePriceFinal(priceBase: number, vat: number): number {
   return Math.round(priceBase * (1 + vat));
 }
 
-export function formatCOP(amountInCents: number, includeIVA: boolean = true): string {
+export function formatCOP(amountInCents: number, includeIVA: boolean = true, showVATPercent: boolean = false): string {
   const amount = amountInCents / 100;
   const formatted = new Intl.NumberFormat('es-CO', {
     style: 'currency',
@@ -11,7 +11,10 @@ export function formatCOP(amountInCents: number, includeIVA: boolean = true): st
     maximumFractionDigits: 0
   }).format(amount);
 
-  return includeIVA ? `${formatted} IVA incl.` : formatted;
+  if (includeIVA) {
+    return showVATPercent ? `${formatted} IVA incl. (19%)` : `${formatted} IVA incl.`;
+  }
+  return formatted;
 }
 
 export function parseCOPPrice(price: string): number {

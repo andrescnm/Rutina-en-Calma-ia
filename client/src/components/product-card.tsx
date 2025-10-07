@@ -91,16 +91,16 @@ export default function ProductCard({ product }: ProductCardProps) {
         <div className="flex items-end justify-between mb-4">
           <div>
             <div className="text-2xl font-bold text-foreground" data-testid={`text-price-${product.id}`}>
-              {formatCOP(finalPrice)}
+              {formatCOP(finalPrice, true, true)}
             </div>
           </div>
-          <div className="text-sm">
+          <div className="text-sm text-right">
             <span className={`font-semibold ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
               {product.stock > 0 ? 'En stock' : 'Agotado'}
             </span>
             {product.stock > 0 && (
               <div className="text-xs text-muted-foreground">
-                {product.stock} unidades
+                {product.stock} disponibles
               </div>
             )}
           </div>
