@@ -171,6 +171,15 @@ export const cartItems = pgTable("cart_items", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const passwordResets = pgTable("password_resets", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   vendor: one(vendors, { fields: [users.id], references: [vendors.userId] }),
@@ -180,6 +189,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   adherenceLogs: many(adherenceLogs),
   recommendations: many(recommendations),
   cartItems: many(cartItems),
+  passwordResets: many(passwordResets),
 }));
 
 export const vendorsRelations = relations(vendors, ({ one, many }) => ({
@@ -202,6 +212,10 @@ export const productsRelations = relations(products, ({ one, many }) => ({
 export const cartItemsRelations = relations(cartItems, ({ one }) => ({
   user: one(users, { fields: [cartItems.userId], references: [users.id] }),
   product: one(products, { fields: [cartItems.productId], references: [products.id] }),
+}));
+
+export const passwordResetsRelations = relations(passwordResets, ({ one }) => ({
+  user: one(users, { fields: [passwordResets.userId], references: [users.id] }),
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
@@ -249,6 +263,11 @@ export const insertCartItemSchema = createInsertSchema(cartItems).omit({
   updatedAt: true,
 });
 
+export const insertPasswordResetSchema = createInsertSchema(passwordResets).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertVendor = z.infer<typeof insertVendorSchema>;
@@ -256,6 +275,7 @@ export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
+export type InsertPasswordReset = z.infer<typeof insertPasswordResetSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Vendor = typeof vendors.$inferSelect;
@@ -270,3 +290,4 @@ export type Feedback = typeof feedback.$inferSelect;
 export type AdherenceLog = typeof adherenceLogs.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type CartItem = typeof cartItems.$inferSelect;
+export type PasswordReset = typeof passwordResets.$inferSelect;
