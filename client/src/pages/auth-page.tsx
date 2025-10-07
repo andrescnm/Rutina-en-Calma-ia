@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -120,6 +120,12 @@ export default function AuthPage() {
                     )}
                     Iniciar Sesión
                   </Button>
+
+                  <div className="text-center">
+                    <Link href="/forgot-password" className="text-sm text-primary hover:underline" data-testid="link-forgot-password">
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  </div>
                 </form>
               </TabsContent>
               

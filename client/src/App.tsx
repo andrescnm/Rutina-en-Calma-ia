@@ -16,12 +16,16 @@ import CuentaPage from "@/pages/cuenta";
 import VendorDashboard from "@/pages/vendedor/dashboard";
 import VendorProductos from "@/pages/vendedor/productos";
 import AdminDashboard from "@/pages/admin/dashboard";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password/:token" component={ResetPassword} />
       <Route path="/tienda" component={TiendaPage} />
       <Route path="/producto/:slug" component={ProductoPage} />
       <Route path="/carrito" component={CarritoPage} />

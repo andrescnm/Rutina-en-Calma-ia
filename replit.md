@@ -19,9 +19,21 @@ Marketplace multi-vendedor para productos de cuidado personal en Colombia con:
 - Todo el texto de la aplicación debe estar en español colombiano
 
 ### Email (Pendiente de Configuración) ⚠️
-**IMPORTANTE**: El sistema de recuperación de contraseñas está implementado pero requiere configuración de envío de emails.
+**IMPORTANTE**: El sistema de recuperación de contraseñas está completamente implementado pero requiere configuración de envío de emails.
 
-Opciones para configurar:
+**Estado actual**:
+- ✅ Endpoints backend funcionando (`/api/auth/request-password-reset` y `/api/auth/reset-password`)
+- ✅ Páginas frontend creadas (`/forgot-password` y `/reset-password/:token`)
+- ✅ Seguridad implementada (tokens únicos, expiración 1h, protección contra enumeración)
+- ⏳ Envío de email pendiente de configurar
+
+**Para desarrollo**: Los links de recuperación se imprimen en los logs del servidor con el formato:
+```
+[DEV] Password reset requested for user@email.com
+[DEV] Reset link: http://localhost:5000/reset-password/[token]
+```
+
+**Para producción**, opciones de email:
 1. **Resend** (Recomendado) - Servicio de emails transaccionales
    - Crear cuenta en https://resend.com
    - Obtener API key
@@ -33,11 +45,10 @@ Opciones para configurar:
 3. **Otro servicio SMTP** - Nodemailer compatible
 
 Una vez tengas el servicio, necesitarás:
-- Agregar la API key como secret en el proyecto
-- Implementar función de envío de email en `server/auth.ts`
-- Actualizar endpoint `/api/auth/request-password-reset` para enviar el correo
-
-**Endpoint actual**: Por ahora devuelve el token y link en la respuesta (solo para desarrollo)
+1. Agregar la API key como secret en el proyecto
+2. Instalar librería del servicio (ej: `npm install resend`)
+3. Implementar función de envío de email en `server/auth.ts` línea 127-130
+4. Reemplazar los `console.log` con el envío real del email
 
 ## Credenciales Admin
 - Email: admin@rutinasimple.co

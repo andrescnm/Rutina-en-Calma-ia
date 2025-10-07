@@ -110,26 +110,25 @@ export function setupAuth(app: Express) {
     try {
       const user = await storage.getUserByEmail(email);
       
-      if (!user) {
-        return res.status(200).json({ 
-          message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña" 
+      if (user) {
+        const token = generateResetToken();
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+        await storage.createPasswordReset({
+          userId: user.id,
+          token,
+          expiresAt,
+          used: false
         });
+
+        const resetLink = `${req.protocol}://${req.get('host')}/reset-password/${token}`;
+        
+        console.log(`[DEV] Password reset requested for ${email}`);
+        console.log(`[DEV] Reset link: ${resetLink}`);
       }
 
-      const token = generateResetToken();
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-
-      await storage.createPasswordReset({
-        userId: user.id,
-        token,
-        expiresAt,
-        used: false
-      });
-
       res.status(200).json({ 
-        message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña",
-        token,
-        resetLink: `${req.protocol}://${req.get('host')}/reset-password/${token}`
+        message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña" 
       });
     } catch (error: any) {
       res.status(500).json({ message: "Error al procesar la solicitud" });
