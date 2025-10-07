@@ -1,0 +1,116 @@
+### Prompt para Replit
+
+Quiero que refactors mi landing de un marketplace de cuidado de la piel para acné (no es sitio médico). Stack: Next.js + React + TailwindCSS. Objetivo: hacerlo más atractivo, claro y confiable sin cambiar el backend.
+
+**Entregables (en código):**
+
+1. `components/Hero.tsx`
+
+   * Hero full-width con fondo suave (gradiente menta→cream) y textura sutil.
+   * Título fuerte: “Tu piel necesita rutina, no milagros”.
+   * Subtítulo breve y empático (no promesas médicas).
+   * CTA principal: “Descubre tu rutina personalizada” (`/quiz`).
+   * Imagen decorativa ligera (ilustración o foto soft-focus) con `next/image`.
+   * A11y: encabezado `<h1>`, contraste AA, `aria-label` en botón.
+
+2. `components/VendorCard.tsx`
+
+   * Tarjeta con avatar/logo circular, nombre, rating, métricas legibles:
+     “Entrega promedio: X días • Puntualidad: Y% • Satisfacción: Z/5”.
+   * Badges opcionales: “Sensitive-OK”, “Más vendido”, “Stock alto”.
+   * Hover con elevación suave (shadow-lg, scale-105, transition).
+   * Props tipadas y placeholders si falta data.
+
+3. `app/vendedores/page.tsx` (o sección en home)
+
+   * Grid responsive (1–3 columnas). Reutiliza `VendorCard`.
+   * Orden por ranking (si hay score), si no, por rating desc.
+
+4. `components/ProductCard.tsx`
+
+   * Foto, nombre, precio en COP (incluye “IVA 19% incluido”).
+   * Badge “Recomendado para piel sensible” cuando aplique.
+   * Botón “Agregar al carrito” + hover.
+   * Tooltip accesible con ingredientes clave si vienen en props.
+
+5. `components/Testimonials.tsx`
+
+   * 3–5 testimonios cortos (strings dummy), avatar iniciales si no hay foto.
+   * Encabezado: “Historias reales, rutinas simples”.
+   * Carrusel simple con `overflow-x-auto` o dots.
+
+6. `components/FAQ.tsx`
+
+   * Acordeón con 5 preguntas típicas (no diagnóstico médico).
+   * Una pregunta debe ser “¿Esto reemplaza a un dermatólogo?” → respuesta: no, invitamos a consultar al médico.
+
+7. `components/SafetyNotice.tsx`
+
+   * Caja con ícono informativo y texto claro:
+     “Este sitio ofrece **información de cuidado personal**, no consejo ni diagnóstico médico. Si tus síntomas empeoran o tienes dudas, **consulta a tu médico**.”
+   * Estilo discreto (bg-amber-50, border-amber-200, text-slate-700).
+
+8. `components/SiteFooter.tsx`
+
+   * Enlaces: Tienda, Vendedores, Blog, Quiz, Crear tienda, Comisiones, Políticas, Centro de ayuda, Devoluciones, Envíos, Contacto.
+   * Línea final: “Hecho con cuidado desde Colombia 🇨🇴”.
+
+9. Animaciones y estilo global
+
+   * Usa `@tailwindcss/typography` si está disponible.
+   * Transiciones suaves (`transition`, `duration-200`) y `scroll-mt`.
+   * Palette Tailwind (agregar a `tailwind.config` si hace falta):
+
+     ```
+     brand: {
+       50:'#ecfdf5',100:'#d1fae5',200:'#a7f3d0',300:'#6ee7b7',
+       400:'#34d399',500:'#10b981',600:'#059669',700:'#047857',
+       800:'#065f46',900:'#064e3b'
+     },
+     cream:'#fff8f1'
+     ```
+   * Fuentes recomendadas: `Inter` (UI) + `Nunito` (botones/titulares). Cárgalas con `next/font`.
+
+10. Accesibilidad y SEO
+
+* Metadatos OG básicos, `lang="es"`, headings jerárquicos.
+* Alt text descriptivo en imágenes.
+* Contraste mínimo AA en todos los botones.
+
+11. Data de ejemplo (crear `data/vendors.ts` y `data/products.ts` para mock):
+
+```ts
+// data/vendors.ts
+export const vendors = [
+  { id:'nat-col', name:'Naturalia Colombia', rating:4.7, avgDays:3, onTime:91, sensitiveOk:true, stock:0.8, nps:84, logo:'/logos/naturalia.png' },
+  { id:'derma-co', name:'DermaColombia', rating:4.9, avgDays:2, onTime:96, sensitiveOk:true, stock:0.91, nps:72, logo:'/logos/derma.png' },
+  { id:'botanica', name:'Botánica Verde', rating:4.6, avgDays:4, onTime:98, sensitiveOk:true, stock:0.94, nps:71, logo:'/logos/botanica.png' },
+];
+// data/products.ts
+export const products = [
+  { id:'gel-1', name:'Gel limpiador suave', priceCOP:32990, sensitive:true, image:'/p/gel.jpg' },
+  { id:'serum-1', name:'Sérum niacinamida 10%', priceCOP:54990, sensitive:true, image:'/p/serum.jpg' },
+  { id:'spf-1', name:'Protector solar FPS 50', priceCOP:42990, sensitive:true, image:'/p/spf.jpg' },
+];
+```
+
+12. Home layout (`app/page.tsx`):
+
+* Orden sugerido: `<Hero />` → “Vendedores destacados” (grid con `VendorCard`) → “Productos destacados” (grid con `ProductCard`) → `<Testimonials />` → `<FAQ />` → `<SafetyNotice />` → `<SiteFooter />`.
+* Sección “Todos los precios incluyen IVA (19%)” visible cerca de productos.
+
+**Copys (en español, no médicos y empáticos):**
+
+* Hero subtitle: “Encuentra productos que acompañan tu rutina sin promesas imposibles.”
+* Badge `Sensitive-OK`: “Amable con piel sensible”.
+* CTA alterno: “Ver productos”.
+
+**Criterios de aceptación:**
+
+* Diseño limpio, 1–3 colores principales (menta, crema, gris oscuro).
+* Responsivo desde 320px a ≥1280px.
+* Lighthouse A11y ≥ 90 en Home (usa aria y contraste correcto).
+* No incluir claims médicos; mantener el aviso legal.
+* Código tipado (TS) y componentes reutilizables.
+
+Crea/actualiza los archivos mencionados, importa los componentes en `app/page.tsx`, y deja TODO listo para compilar y visualizar. Si faltan imágenes, usa placeholders (`/placeholder.svg`) y `Image` con `priority` en el Hero.
