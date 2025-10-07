@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { 
   TrendingUp, Users, Package, DollarSign, Clock, Settings, 
@@ -85,6 +86,27 @@ export default function AdminDashboard() {
     },
   });
 
+  const updateUserRoleMutation = useMutation({
+    mutationFn: async ({ id, role }: { id: string; role: string }) => {
+      return await apiRequest("PATCH", `/api/admin/users/${id}/role`, { role });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/audit-logs"] });
+      toast({
+        title: "Usuario actualizado",
+        description: "El rol del usuario se ha actualizado correctamente.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el usuario",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (!user || user.role !== "admin") {
     return (
       <div className="min-h-screen bg-background">
@@ -112,6 +134,10 @@ export default function AdminDashboard() {
   const handleToggleProduct = (productId: string, currentStatus: string) => {
     const newStatus = currentStatus === "active" ? "paused" : "active";
     updateProductMutation.mutate({ id: productId, status: newStatus });
+  };
+
+  const handleChangeUserRole = (userId: string, newRole: string) => {
+    updateUserRoleMutation.mutate({ id: userId, role: newRole });
   };
 
   return (
@@ -467,35 +493,52 @@ export default function AdminDashboard() {
                         <tr className="text-left">
                           <th className="pb-3 text-sm font-semibold text-muted-foreground">Usuario</th>
                           <th className="pb-3 text-sm font-semibold text-muted-foreground">Email</th>
-                          <th className="pb-3 text-sm font-semibold text-muted-foreground">Rol</th>
+                          <th className="pb-3 text-sm font-semibold text-muted-foreground">Rol Actual</th>
+                          <th className="pb-3 text-sm font-semibold text-muted-foreground">Cambiar Rol</th>
                           <th className="pb-3 text-sm font-semibold text-muted-foreground">Fecha registro</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {users.map((user: any) => (
-                          <tr key={user.id} data-testid={`row-user-${user.id}`}>
+                        {users.map((currentUser: any) => (
+                          <tr key={currentUser.id} data-testid={`row-user-${currentUser.id}`}>
                             <td className="py-3">
-                              <div className="font-semibold" data-testid={`text-user-name-${user.id}`}>{user.username}</div>
+                              <div className="font-semibold" data-testid={`text-user-name-${currentUser.id}`}>{currentUser.username}</div>
                             </td>
                             <td className="py-3 text-sm">
-                              {user.email}
+                              {currentUser.email}
                             </td>
                             <td className="py-3">
                               <Badge 
-                                variant={user.role === "admin" ? "default" : "secondary"}
+                                variant={currentUser.role === "admin" ? "default" : "secondary"}
                                 className={
-                                  user.role === "admin" 
+                                  currentUser.role === "admin" 
                                     ? "bg-purple-100 text-purple-700" 
-                                    : user.role === "vendor"
+                                    : currentUser.role === "vendor"
                                     ? "bg-blue-100 text-blue-700"
                                     : "bg-gray-100 text-gray-700"
                                 }
                               >
-                                {user.role === "admin" ? "Admin" : user.role === "vendor" ? "Vendedor" : "Usuario"}
+                                {currentUser.role === "admin" ? "Admin" : currentUser.role === "vendor" ? "Vendedor" : "Usuario"}
                               </Badge>
                             </td>
+                            <td className="py-3">
+                              <Select
+                                value={currentUser.role}
+                                onValueChange={(newRole) => handleChangeUserRole(currentUser.id, newRole)}
+                                disabled={updateUserRoleMutation.isPending || currentUser.id === user?.id}
+                              >
+                                <SelectTrigger className="w-40" data-testid={`select-role-${currentUser.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="user">Usuario</SelectItem>
+                                  <SelectItem value="vendor">Vendedor</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
                             <td className="py-3 text-sm">
-                              {user.createdAt ? new Date(user.createdAt).toLocaleDateString('es-CO') : 'N/A'}
+                              {currentUser.createdAt ? new Date(currentUser.createdAt).toLocaleDateString('es-CO') : 'N/A'}
                             </td>
                           </tr>
                         ))}

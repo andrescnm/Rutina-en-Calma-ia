@@ -449,6 +449,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/admin/users/:id/role", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.sendStatus(403);
+    }
+
+    try {
+      const { role } = req.body;
+      
+      if (!['user', 'vendor', 'admin'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      const user = await storage.updateUser(req.params.id, { role });
+      
+      await storage.createAuditLog("USER_ROLE_UPDATE", req.user.id, {
+        userId: req.params.id,
+        newRole: role
+      });
+
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
