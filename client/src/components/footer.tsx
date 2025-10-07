@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import MedicalDisclaimer from "./medical-disclaimer";
+import SafetyNotice from "./safety-notice";
 
 export default function Footer() {
   return (
@@ -31,11 +31,6 @@ export default function Footer() {
                   Blog
                 </Link>
               </li>
-              <li>
-                <button className="hover:text-foreground transition-colors text-left">
-                  Quiz personalizado
-                </button>
-              </li>
             </ul>
           </div>
           
@@ -50,11 +45,6 @@ export default function Footer() {
               <li>
                 <button className="hover:text-foreground transition-colors text-left">
                   Comisiones
-                </button>
-              </li>
-              <li>
-                <button className="hover:text-foreground transition-colors text-left">
-                  Guía del vendedor
                 </button>
               </li>
               <li>
@@ -92,11 +82,13 @@ export default function Footer() {
           </div>
         </div>
         
-        <MedicalDisclaimer />
+        <div className="mb-8">
+          <SafetyNotice />
+        </div>
         
         <div className="border-t border-border pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2024 Rutina Simple. Todos los precios incluyen IVA (19%).
+            © 2024 Rutina Simple. Todos los precios incluyen IVA (19%). Hecho con cuidado desde Colombia 🇨🇴
           </p>
           <div className="flex gap-6 text-sm text-muted-foreground">
             <button className="hover:text-foreground transition-colors">
